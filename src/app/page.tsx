@@ -12,7 +12,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
-import { ContentIdea } from "@/lib/types";
+import { ContentIdea, PostAnalytics } from "@/lib/types";
 import { Kanban } from "@/components/kanban";
 
 async function fetchIdeas(): Promise<ContentIdea[]> {
@@ -29,6 +29,28 @@ async function fetchIdeas(): Promise<ContentIdea[]> {
   return (data ?? []) as ContentIdea[];
 }
 
+async function fetchAnalyticsByIdea(
+  ideaIds: string[],
+): Promise<Map<string, PostAnalytics[]>> {
+  if (ideaIds.length === 0) return new Map();
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from("wtm_social_post_analytics")
+    .select("*")
+    .in("idea_id", ideaIds);
+  if (error) {
+    console.error("[page] Analytics fetch error:", error);
+    return new Map();
+  }
+  const map = new Map<string, PostAnalytics[]>();
+  for (const row of (data ?? []) as PostAnalytics[]) {
+    const arr = map.get(row.idea_id) ?? [];
+    arr.push(row);
+    map.set(row.idea_id, arr);
+  }
+  return map;
+}
+
 export const dynamic = "force-dynamic"; // never cache — always live
 
 export default async function HomePage() {
@@ -38,10 +60,15 @@ export default async function HomePage() {
   }
 
   const ideas = await fetchIdeas();
+  const analyticsByIdea = await fetchAnalyticsByIdea(ideas.map((i) => i.idea_id));
   const successCount = ideas.filter((i) =>
     ["scheduled", "published"].includes(i.status),
   ).length;
   const failCount = ideas.filter((i) => i.status === "failed").length;
+  const analyticsCount = Array.from(analyticsByIdea.values()).reduce(
+    (a, arr) => a + arr.length,
+    0,
+  );
 
   return (
     <main className="min-h-screen px-6 py-6">
@@ -58,7 +85,7 @@ export default async function HomePage() {
         </div>
         <div className="text-xs text-slate-400">
           {ideas.length} ideas tracked · {successCount} scheduled/published ·{" "}
-          {failCount} failed
+          {failCount} failed · {analyticsCount} analytics snapshots
         </div>
       </header>
 
@@ -81,7 +108,7 @@ export default async function HomePage() {
           </a>
         </div>
       </div>
-      <Kanban ideas={ideas} />
+      <Kanban ideas={ideas} analyticsByIdea={analyticsByIdea} />
 
       <footer className="mt-12 text-xs text-slate-500 border-t border-slate-800 pt-4">
         Phase γ · W3 read-only kanban · W5 adds idea submission · W7 adds
