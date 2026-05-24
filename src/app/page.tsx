@@ -66,12 +66,20 @@ export default async function HomePage() {
         <h2 className="text-sm uppercase tracking-wider text-slate-300 font-semibold">
           Idea kanban (state machine view)
         </h2>
-        <a
-          href="/new"
-          className="bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium px-4 py-2 rounded transition"
-        >
-          + New idea
-        </a>
+        <div className="flex gap-2">
+          <a
+            href="/pillars"
+            className="bg-slate-700 hover:bg-slate-600 text-white text-sm font-medium px-4 py-2 rounded transition"
+          >
+            Pillars
+          </a>
+          <a
+            href="/new"
+            className="bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium px-4 py-2 rounded transition"
+          >
+            + New idea
+          </a>
+        </div>
       </div>
       <Kanban ideas={ideas} />
 
