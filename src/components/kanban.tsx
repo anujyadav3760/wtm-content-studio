@@ -35,10 +35,34 @@ function failureSummary(idea: ContentIdea): string | null {
   return null;
 }
 
+function intakeSummary(idea: ContentIdea): {
+  mode: string;
+  confidence: string;
+  rationale: string;
+} | null {
+  const o = idea.overrides as
+    | {
+        intake_decision?: {
+          accepted_mode?: string;
+          confidence?: string;
+          rationale?: string;
+        };
+      }
+    | null;
+  const d = o?.intake_decision;
+  if (!d?.accepted_mode) return null;
+  return {
+    mode: d.accepted_mode,
+    confidence: d.confidence ?? "high",
+    rationale: d.rationale ?? "",
+  };
+}
+
 function Card({ idea }: { idea: ContentIdea }) {
   const color = STATUS_COLORS[idea.status] ?? "#888";
   const updated = idea.updated_at.slice(0, 19).replace("T", " ");
   const failure = failureSummary(idea);
+  const intake = intakeSummary(idea);
 
   return (
     <div
@@ -67,6 +91,14 @@ function Card({ idea }: { idea: ContentIdea }) {
         <span>{updated}</span>
         <span>{idea.last_event ?? "—"}</span>
       </div>
+      {intake && (
+        <div
+          className="bg-blue-950/50 text-blue-200 px-1.5 py-1 rounded mt-1.5 text-[10px] cursor-help"
+          title={intake.rationale}
+        >
+          🤖 intake: {intake.mode} · {intake.confidence}
+        </div>
+      )}
       {failure && (
         <div
           className="bg-red-950 text-red-300 px-1.5 py-1 rounded mt-1.5 text-[10px] truncate cursor-help"
