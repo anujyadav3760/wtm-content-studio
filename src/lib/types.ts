@@ -75,6 +75,21 @@ export const STATUS_ORDER: IdeaStatus[] = [
   "paused_for_review",
 ];
 
+export interface PostAnalytics {
+  idea_id: string;
+  surface: "ig" | "x";
+  metricool_post_id: string;
+  impressions: number;
+  likes: number;
+  comments: number;
+  shares: number;
+  saves: number;
+  profile_visits: number;
+  link_clicks: number;
+  engagement_rate: number;
+  captured_at: string;
+}
+
 export const STATUS_COLORS: Record<IdeaStatus, string> = {
   queued: "#6b7280",
   strategist_decided: "#8b5cf6",

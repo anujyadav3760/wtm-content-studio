@@ -10,7 +10,13 @@
  * writes new ContentIdea rows. Phase γ W6 adds inline edit / pause / override.
  */
 
-import { ContentIdea, STATUS_COLORS, STATUS_ORDER, IdeaStatus } from "@/lib/types";
+import {
+  ContentIdea,
+  PostAnalytics,
+  STATUS_COLORS,
+  STATUS_ORDER,
+  IdeaStatus,
+} from "@/lib/types";
 
 function failureSummary(idea: ContentIdea): string | null {
   const c = idea.compliance_result as { passed?: boolean; hits?: Array<{ rule?: string }> } | null;
@@ -58,7 +64,31 @@ function intakeSummary(idea: ContentIdea): {
   };
 }
 
-function Card({ idea }: { idea: ContentIdea }) {
+function AnalyticsRow({ a }: { a: PostAnalytics }) {
+  const ageMin = Math.round((Date.now() - new Date(a.captured_at).getTime()) / 60000);
+  const ageStr = ageMin < 60 ? `${ageMin}m` : ageMin < 1440 ? `${Math.round(ageMin / 60)}h` : `${Math.round(ageMin / 1440)}d`;
+  return (
+    <div
+      className="bg-emerald-950/40 text-emerald-200 px-1.5 py-1 rounded mt-1.5 text-[10px] flex gap-2 flex-wrap"
+      title={`Last synced ${ageStr} ago · engagement rate ${(a.engagement_rate * 100).toFixed(2)}%`}
+    >
+      <span className="font-semibold uppercase text-[9px]">{a.surface}</span>
+      <span>👁 {a.impressions.toLocaleString()}</span>
+      <span>❤ {a.likes.toLocaleString()}</span>
+      <span>💬 {a.comments.toLocaleString()}</span>
+      <span>🔖 {a.saves.toLocaleString()}</span>
+      {a.link_clicks > 0 && <span>🔗 {a.link_clicks.toLocaleString()}</span>}
+    </div>
+  );
+}
+
+function Card({
+  idea,
+  analytics,
+}: {
+  idea: ContentIdea;
+  analytics: PostAnalytics[];
+}) {
   const color = STATUS_COLORS[idea.status] ?? "#888";
   const updated = idea.updated_at.slice(0, 19).replace("T", " ");
   const failure = failureSummary(idea);
@@ -99,6 +129,9 @@ function Card({ idea }: { idea: ContentIdea }) {
           🤖 intake: {intake.mode} · {intake.confidence}
         </div>
       )}
+      {analytics.map((a) => (
+        <AnalyticsRow key={`${a.idea_id}-${a.surface}`} a={a} />
+      ))}
       {failure && (
         <div
           className="bg-red-950 text-red-300 px-1.5 py-1 rounded mt-1.5 text-[10px] truncate cursor-help"
@@ -119,7 +152,13 @@ function Card({ idea }: { idea: ContentIdea }) {
   );
 }
 
-export function Kanban({ ideas }: { ideas: ContentIdea[] }) {
+export function Kanban({
+  ideas,
+  analyticsByIdea,
+}: {
+  ideas: ContentIdea[];
+  analyticsByIdea?: Map<string, PostAnalytics[]>;
+}) {
   const byStatus = new Map<IdeaStatus, ContentIdea[]>();
   for (const i of ideas) {
     const arr = byStatus.get(i.status) ?? [];
@@ -145,7 +184,13 @@ export function Kanban({ ideas }: { ideas: ContentIdea[] }) {
               {items.length === 0 ? (
                 <div className="p-4 text-slate-500 italic text-center text-[11px]">— empty —</div>
               ) : (
-                items.map((i) => <Card key={i.idea_id} idea={i} />)
+                items.map((i) => (
+                  <Card
+                    key={i.idea_id}
+                    idea={i}
+                    analytics={analyticsByIdea?.get(i.idea_id) ?? []}
+                  />
+                ))
               )}
             </div>
           </div>
