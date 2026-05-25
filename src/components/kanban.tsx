@@ -140,6 +140,43 @@ function Card({
           ⚠ {failure}
         </div>
       )}
+      {/* Source-asset links — useful for post-mortem when a render goes weird */}
+      {idea.rendered_artifacts &&
+        (() => {
+          const r = idea.rendered_artifacts as {
+            png_urls?: string[];
+            svg_urls?: string[];
+          };
+          const pngs = r.png_urls ?? [];
+          const svgs = r.svg_urls ?? [];
+          if (pngs.length === 0 && svgs.length === 0) return null;
+          return (
+            <div className="text-[9px] text-slate-500 mt-1.5 flex gap-1.5">
+              {pngs.length > 0 && (
+                <a
+                  href={pngs[0]}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="hover:text-blue-300 underline"
+                  title={`View slide 1 PNG (${pngs.length} total)`}
+                >
+                  PNG×{pngs.length}
+                </a>
+              )}
+              {svgs.length > 0 && (
+                <a
+                  href={svgs[0]}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="hover:text-blue-300 underline"
+                  title={`View slide 1 SVG source (${svgs.length} total)`}
+                >
+                  SVG×{svgs.length}
+                </a>
+              )}
+            </div>
+          );
+        })()}
       {idea.human_notes && (
         <div className="bg-yellow-950 text-yellow-300 px-1.5 py-1 rounded mt-1.5 text-[10px]">
           📝 {idea.human_notes}
