@@ -2,14 +2,15 @@
 
 Creator console for [wtm-social-automation](https://github.com/anujyadav3760/wtm-social-automation). Phase γ of the platform build — Next.js 14 + Supabase + NextAuth (Google OAuth).
 
-**Status (2026-05-25):** W3 ✅ scaffold + auth + read-only kanban. W4-W8 in progress (see [parent repo's `docs/phase-gamma-creator-console.md`](https://github.com/anujyadav3760/wtm-social-automation/blob/main/docs/phase-gamma-creator-console.md)).
+**Status (2026-05-25): Phase γ COMPLETE + render-safety hardening shipped.** Live at `social.whatsthemoat.com`.
 
-## What this does (when complete)
+## What's live
 
-- **W3 (this PR):** read-only kanban of every ContentIdea from the WTM cron + manual submissions, grouped by state machine status
-- **W5:** "Submit idea" form (3 modes: subject only, subject+constraints, full draft)
-- **W6:** Pillar configuration (cadence, day weights, enable/disable)
-- **W7:** Per-post Metricool analytics readback (likes/comments/reach/clicks)
+- **`/`** — kanban of every ContentIdea (autonomous cron + manual submissions). 8 status columns. Shows 🤖 intake badge, PNG×N/SVG×N source-asset links, ⚠ failure reasons (compliance/render/png_ocr), engagement panel (👁❤💬🔖🔗) when analytics-sync has run.
+- **`/new`** — 3-tab idea submission form (subject / subject_plus / full_draft). POST writes a queued ContentIdea; Railway queue-drain picks it up within 15 min.
+- **`/pillars`** — read + edit + add pillar configs (day_weights, descriptions, enable/disable). Strategist reads from this.
+- **`/login`** — Google OAuth with allowlist (anuj4frens@gmail.com).
+- **`/api/ideas`, `/api/pillars`** — backend APIs (NextAuth-gated).
 
 ## Architecture
 
