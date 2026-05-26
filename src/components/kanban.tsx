@@ -10,6 +10,7 @@
  * writes new ContentIdea rows. Phase γ W6 adds inline edit / pause / override.
  */
 
+import { CollapsibleColumnBody } from "@/components/collapsible-column-body";
 import {
   ContentIdea,
   PostAnalytics,
@@ -258,6 +259,23 @@ function Card({
   );
 }
 
+/**
+ * Status columns that get auto-collapse for old items. `published` is the
+ * obvious one — once auto-publish is on, this column grows indefinitely.
+ * `failed` + `paused` benefit too — old failures stay visible for ~1 week
+ * for forensic value, then collapse.
+ *
+ * Items older than COLLAPSE_AFTER_DAYS in these columns hide behind a
+ * "+ Show N older" button. Other columns (queued / scheduled / etc.) stay
+ * fully expanded because they represent live work, not history.
+ */
+const STATUSES_TO_COLLAPSE: ReadonlySet<IdeaStatus> = new Set<IdeaStatus>([
+  "published",
+  "failed",
+  "paused_for_review",
+]);
+const COLLAPSE_AFTER_DAYS: number = 7;
+
 export function Kanban({
   ideas,
   analyticsByIdea,
@@ -272,11 +290,30 @@ export function Kanban({
     byStatus.set(i.status, arr);
   }
 
+  // Cutoff: items with updated_at strictly older than this are "older"
+  const cutoffMs = Date.now() - COLLAPSE_AFTER_DAYS * 24 * 60 * 60 * 1000;
+
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
       {STATUS_ORDER.map((status) => {
         const items = byStatus.get(status) ?? [];
         const color = STATUS_COLORS[status];
+
+        // For collapsing columns, split into recent + older. We use
+        // updated_at (not created_at) so a recently-edited old item stays
+        // visible. Order within each bucket follows the input order.
+        const shouldCollapse = STATUSES_TO_COLLAPSE.has(status);
+        const recent: ContentIdea[] = [];
+        const older: ContentIdea[] = [];
+        for (const i of items) {
+          const ts = new Date(i.updated_at).getTime();
+          if (!shouldCollapse || Number.isNaN(ts) || ts >= cutoffMs) {
+            recent.push(i);
+          } else {
+            older.push(i);
+          }
+        }
+
         return (
           <div key={status} className="bg-slate-800 rounded-lg overflow-hidden flex flex-col">
             <div
@@ -289,14 +326,32 @@ export function Kanban({
             <div className="flex-1">
               {items.length === 0 ? (
                 <div className="p-4 text-slate-500 italic text-center text-[11px]">— empty —</div>
-              ) : (
-                items.map((i) => (
+              ) : older.length === 0 ? (
+                recent.map((i) => (
                   <Card
                     key={i.idea_id}
                     idea={i}
                     analytics={analyticsByIdea?.get(i.idea_id) ?? []}
                   />
                 ))
+              ) : (
+                <CollapsibleColumnBody
+                  visibleChildren={recent.map((i) => (
+                    <Card
+                      key={i.idea_id}
+                      idea={i}
+                      analytics={analyticsByIdea?.get(i.idea_id) ?? []}
+                    />
+                  ))}
+                  hiddenChildren={older.map((i) => (
+                    <Card
+                      key={i.idea_id}
+                      idea={i}
+                      analytics={analyticsByIdea?.get(i.idea_id) ?? []}
+                    />
+                  ))}
+                  hiddenLabel={`${older.length} older than ${COLLAPSE_AFTER_DAYS} day${COLLAPSE_AFTER_DAYS === 1 ? "" : "s"}`}
+                />
               )}
             </div>
           </div>
