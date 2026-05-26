@@ -64,6 +64,61 @@ function intakeSummary(idea: ContentIdea): {
   };
 }
 
+/** Per-surface schedule badge data: icon + short time label + tooltip. */
+type ScheduleBadge = {
+  icon: string;
+  label: string;
+  tooltip: string;
+  bg: string;
+};
+
+/** Extract scheduled_for timestamps from publisher_results (set by the
+ *  Python pipeline's mark_scheduled in pipeline/idea_lifecycle.py) and
+ *  format them as compact badges the kanban can render in the card.
+ *
+ *  Returns empty array for ideas that pre-date the scheduled_for field
+ *  or never reached the "scheduled" status — graceful degradation, no
+ *  layout shift when the data isn't there yet.
+ */
+function scheduleBadges(idea: ContentIdea): ScheduleBadge[] {
+  const pr = idea.publisher_results;
+  if (!pr || typeof pr !== "object") return [];
+
+  const badges: ScheduleBadge[] = [];
+  const surfaces: Array<{ key: string; icon: string; bg: string; label: string }> = [
+    { key: "metricool_ig", icon: "📷", bg: "bg-pink-950/60 text-pink-200", label: "IG" },
+    { key: "metricool_x", icon: "🐦", bg: "bg-sky-950/60 text-sky-200", label: "X" },
+    { key: "metricool_reel", icon: "🎬", bg: "bg-purple-950/60 text-purple-200", label: "Reel" },
+  ];
+
+  for (const s of surfaces) {
+    const entry = (pr as Record<string, unknown>)[s.key];
+    if (!entry || typeof entry !== "object") continue;
+    const scheduledFor = (entry as Record<string, unknown>).scheduled_for;
+    if (typeof scheduledFor !== "string" || !scheduledFor) continue;
+
+    const d = new Date(scheduledFor);
+    if (Number.isNaN(d.getTime())) continue;
+
+    // Compact label: "Mon 16:00" in viewer's local time. ISO in tooltip
+    // so ops can verify the canonical UTC + cross-platform cross-post
+    // (FB Reel + YT Short ride the same Metricool slot as IG Reel).
+    const dayLabel = d.toLocaleDateString(undefined, { weekday: "short" });
+    const timeLabel = d.toLocaleTimeString(undefined, {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+    badges.push({
+      icon: s.icon,
+      label: `${s.label} ${dayLabel} ${timeLabel}`,
+      tooltip: `${s.label} publishes at ${scheduledFor} (your local time: ${d.toLocaleString()})`,
+      bg: s.bg,
+    });
+  }
+  return badges;
+}
+
 function AnalyticsRow({ a }: { a: PostAnalytics }) {
   const ageMin = Math.round((Date.now() - new Date(a.captured_at).getTime()) / 60000);
   const ageStr = ageMin < 60 ? `${ageMin}m` : ageMin < 1440 ? `${Math.round(ageMin / 60)}h` : `${Math.round(ageMin / 1440)}d`;
@@ -93,6 +148,7 @@ function Card({
   const updated = idea.updated_at.slice(0, 19).replace("T", " ");
   const failure = failureSummary(idea);
   const intake = intakeSummary(idea);
+  const scheduleBadgeList = scheduleBadges(idea);
 
   return (
     <div
@@ -117,6 +173,19 @@ function Card({
         <span>{idea.media_type}</span>
         <span>${idea.total_cost_usd.toFixed(3)}</span>
       </div>
+      {scheduleBadgeList.length > 0 && (
+        <div className="flex gap-1 flex-wrap mb-1.5">
+          {scheduleBadgeList.map((b, idx) => (
+            <span
+              key={idx}
+              className={`${b.bg} px-1.5 py-0.5 rounded text-[10px] cursor-help font-medium`}
+              title={b.tooltip}
+            >
+              {b.icon} {b.label}
+            </span>
+          ))}
+        </div>
+      )}
       <div className="flex justify-between text-slate-500 text-[10px]">
         <span>{updated}</span>
         <span>{idea.last_event ?? "—"}</span>
